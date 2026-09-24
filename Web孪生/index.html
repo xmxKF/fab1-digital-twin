@@ -1,0 +1,147 @@
+<title>数字孪生</title>
+<meta name="description" content="厂房模型 + 离散事件生产流动模拟（模拟数据）">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#E9EEEF; --panel:#FFFFFF; --panel-2:#F4F7F7; --line:#D3DBDD; --ink:#18232A; --muted:#5B6A71;
+  --accent:#C98A00; --accent-ink:#7A5400; --run:#2E9E6A; --idle:#9AA6AB; --down:#D2463C; --wait:#E0A21B;
+  --canvas:#DDE5E7; --shadow:0 1px 2px rgba(20,40,50,.08);
+  --f-disp:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  color-scheme:dark; --ground:#101619; --panel:#172024; --panel-2:#1D282D; --line:#2C3A40; --ink:#E3EAEC; --muted:#93A3A9;
+  --accent:#E8AE2A; --accent-ink:#F3C75E; --run:#3FBF84; --idle:#6F7D83; --down:#EF6A5F; --wait:#EDB53B; --canvas:#1B2428; --shadow:none;}}
+:root[data-theme="dark"]{
+  color-scheme:dark; --ground:#101619; --panel:#172024; --panel-2:#1D282D; --line:#2C3A40; --ink:#E3EAEC; --muted:#93A3A9;
+  --accent:#E8AE2A; --accent-ink:#F3C75E; --run:#3FBF84; --idle:#6F7D83; --down:#EF6A5F; --wait:#EDB53B; --canvas:#1B2428; --shadow:none;}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--ground);color:var(--ink);font-family:var(--f-body);font-size:13px;line-height:1.45}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr;padding-inline:16px;padding-block:10px;gap:10px;box-sizing:border-box}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
+h1{font-family:var(--f-disp);font-weight:600;font-size:20px;letter-spacing:.01em;margin:0;text-wrap:balance}
+h1 small{font-family:var(--f-body);font-weight:400;font-size:12px;color:var(--muted);margin-left:8px}
+.tag{font-family:var(--f-mono);font-size:11px;padding:2px 7px;border:1px solid var(--accent);color:var(--accent-ink);border-radius:3px;letter-spacing:.03em}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg button,.btn{font:500 12px var(--f-body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn:hover,.seg button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.clock{margin-left:auto;font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.clock b{color:var(--ink);font-weight:500}
+main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:10px;min-height:0}
+.stage{position:relative;background:var(--canvas);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-height:320px}
+.stage canvas{display:block;width:100%;height:100%}
+.overlay{position:absolute;left:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;max-width:min(430px,calc(100% - 20px))}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.log{background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:5px;padding:6px 8px;font:11px/1.5 var(--f-mono);max-height:118px;overflow:auto}
+.log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.legend{position:absolute;right:10px;top:10px;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:5px;padding:6px 8px;display:grid;grid-template-columns:auto auto;gap:3px 10px;font-size:11px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-mono);color:var(--muted)}
+aside{display:flex;flex-direction:column;gap:10px;overflow:auto;min-height:0}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;box-shadow:var(--shadow)}
+h2{font:600 11px var(--f-disp);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 12px}
+.kpi .v{font:500 20px var(--f-mono);font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:11px;color:var(--muted);margin-left:3px}
+.kpi .k{font-size:11px;color:var(--muted)}
+.bars{display:grid;grid-template-columns:44px 1fr 44px;gap:4px 8px;align-items:center;font-size:11.5px}
+.bars .nm{font-family:var(--f-mono)}
+.bar{height:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:2px;position:relative;overflow:hidden}
+.bar span{position:absolute;inset:0 auto 0 0;background:var(--run)}
+.bar span.hot{background:var(--wait)} .bar span.crit{background:var(--down)}
+.bar em{position:absolute;top:-1px;bottom:-1px;width:1px;background:var(--ink);opacity:.45}
+.bars .pct{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+.ctl{display:grid;gap:8px}
+.ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.ctl label b{font:500 12px var(--f-mono);color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+dl{display:grid;grid-template-columns:86px 1fr;gap:3px 8px;margin:0;font-size:12px}
+dt{color:var(--muted)} dd{margin:0;font-family:var(--f-mono);font-size:11.5px;word-break:break-all}
+.pill{display:inline-block;font:500 11px var(--f-mono);padding:1px 6px;border-radius:9px;color:#fff}
+.note{font-size:11px;color:var(--muted)}
+.empty{color:var(--muted);font-size:12px}
+@media (max-width:900px){
+  .app{height:auto} main{grid-template-columns:1fr} .stage{height:58vh} aside{overflow:visible}
+  .legend{display:none}
+}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="app">
+  <header>
+    <h1 id="h-title">数字孪生<small id="h-sub"></small></h1>
+    <span class="tag" id="h-tag">模拟数据</span>
+    <div class="seg" role="group" aria-label="楼层">
+      <button id="lv-all" data-lv="ALL" aria-pressed="true">全部</button>
+      <button id="lv-rf" data-lv="RF" aria-pressed="false">RF</button>
+      <button id="lv-2f" data-lv="2F" aria-pressed="false">2F</button>
+      <button id="lv-1f" data-lv="1F" aria-pressed="false">1F</button>
+      <button id="lv-b1" data-lv="B1" aria-pressed="false">B1</button>
+    </div>
+    <div class="clock">仿真时钟 <b id="clock">—</b></div>
+  </header>
+  <main>
+    <div class="stage" id="stage">
+      <div class="loading" id="loading">载入模型…</div>
+      <div class="legend" id="legend"></div>
+      <div class="overlay">
+        <div class="chips">
+          <button class="btn" id="v-ext">外观</button>
+          <button class="btn" id="v-cut">剖切</button>
+          <button class="btn" id="v-top">1F 俯视</button>
+          <button class="btn" id="v-litho">光刻区</button>
+          <button class="btn" id="t-explode" aria-pressed="false">楼层展开</button>
+          <select class="btn" id="mode" aria-label="着色模式">
+            <option value="state">设备状态</option>
+            <option value="particle">洁净度 (≥0.1µm/m³)</option>
+            <option value="temp">温度 (°C)</option>
+          </select>
+        </div>
+        <div class="log" id="log" aria-live="polite"></div>
+      </div>
+    </div>
+    <aside>
+      <section>
+        <h2>产线概况 · 滚动 30 天</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="k-wpm">—</div><div class="k" id="k-wpm-label">出片折合 WPM</div></div>
+          <div class="kpi"><div class="v" id="k-wip">—</div><div class="k">在制 WIP（lot，25 片/lot）</div></div>
+          <div class="kpi"><div class="v" id="k-ct">—</div><div class="k">平均周期时间 CT</div></div>
+          <div class="kpi"><div class="v" id="k-av">—</div><div class="k">设备可用率 / 停机台数</div></div>
+        </div>
+      </section>
+      <section>
+        <h2>设备组负荷（竖线 = 反推目标值）</h2>
+        <div class="bars" id="bars"></div>
+      </section>
+      <section class="ctl">
+        <h2>场景</h2>
+        <label for="rate">投片速率 <b id="rate-v">—</b></label>
+        <input type="range" id="rate">
+        <label for="speed">仿真速度 <b id="speed-v">1 秒 = 6 分钟</b></label>
+        <input type="range" id="speed" min="0" max="6" step="1" value="2">
+        <div class="row">
+          <button class="btn" id="b-pause">暂停</button>
+          <button class="btn" id="b-fail">随机光刻机故障</button>
+          <button class="btn" id="b-lit25">光刻组 25% 停机</button>
+          <button class="btn" id="b-reset">重置</button>
+        </div>
+      </section>
+      <section>
+        <h2>选中对象</h2>
+        <div id="insp"><p class="empty">在 3D 视图中点选设备、Sub-Fab 配套或屋顶机电，查看资产 ID 与状态。</p></div>
+      </section>
+      <p class="note" id="note"></p>
+    </aside>
+  </main>
+</div>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module" src="app.js"></script>

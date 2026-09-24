@@ -1,0 +1,26 @@
+# 白名单：默认不提交任何文件，只放行下面列出的代码与公开说明。
+# 厂区参数（source/config/plant.json）、真实模型、图纸、渲染、设计文档一律不入库。
+/*
+!/.gitignore
+!/.nojekyll
+!/index.html
+!/README.md
+
+!/source/
+/source/*
+!/source/*.py
+!/source/run_all.sh
+!/source/config/
+/source/config/*
+!/source/config/plant.example.json
+
+!/Web孪生/
+/Web孪生/*
+!/Web孪生/index.html
+!/Web孪生/index_local.html
+!/Web孪生/app.js
+!/Web孪生/启动孪生.cmd
+!/Web孪生/vendor/
+!/Web孪生/assets-demo/
+
+__pycache__/
